@@ -5,6 +5,7 @@ import ProductDetailPage from './pages/ProductDetailPage'
 import ProductFormPage from './pages/ProductFormPage'
 import CsvImportPage from './pages/CsvImportPage'
 import OrderConfirmPage from './pages/OrderConfirmPage'
+import CartPage from './pages/CartPage'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <main className="max-w-6xl mx-auto px-4 py-8">
         <Routes>
           <Route path="/"                   element={<ProductListPage />} />
+          <Route path="/cart"               element={<CartPage />} />
           <Route path="/products/new"       element={<ProductFormPage />} />
           <Route path="/products/import"    element={<CsvImportPage />} />
           <Route path="/products/:id/edit"  element={<ProductFormPage />} />

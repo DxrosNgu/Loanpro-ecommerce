@@ -96,6 +96,22 @@ Controller → Service → Repository → PostgreSQL
 
 ---
 
+## Fixed incidents
+
+### `function lower(bytea) does not exist` on `GET /api/search` with no keyword
+
+**Symptom:** `GET /api/search?minPrice=30&page=0&size=12` (i.e. any search request where `q` is omitted) returned HTTP 500 in production against PostgreSQL, while working fine in local tests.
+
+**Root cause:** the original JPQL wrapped the `:q` parameter directly inside `LOWER(CONCAT('%', :q, '%'))`. When `q` is `null` and there's no string literal nearby for Hibernate to infer a type from, PostgreSQL's JDBC driver falls back to binding the untyped `null` as `bytea`. `LOWER(bytea)` has no matching function overload, so Postgres rejects the query — even though the surrounding `:q IS NULL OR ...` clause should have made the `LOWER()` call irrelevant. SQL does not short-circuit `OR` branches during type-checking, so the broken branch is evaluated regardless.
+
+**Why it passed all existing tests:** the test profile (`application-test.yml`) runs against H2, not PostgreSQL. H2's JDBC driver does not exhibit the same untyped-null-to-bytea fallback, so the query executed successfully in every test run and CI build.
+
+**Fix:** removed `LOWER()`/`CONCAT()` from JPQL entirely. The `%pattern%` wildcard string is now built in Java (`ProductRepository.search()`, a default method) and passed to the underlying query as either a concrete, already-lowercased `String` or a `null` — never a `null` routed through a SQL string function. See `ProductRepositoryTest` for full regression coverage, including the exact production request shape.
+
+**Lesson:** any JPQL that wraps a nullable bound parameter in a database function (`LOWER`, `CONCAT`, `UPPER`, `TRIM`, etc.) is a latent cross-database portability bug, even if guarded by an `IS NULL OR` clause. Prefer building the final string value in Java and binding it as a plain parameter.
+
+---
+
 ## CSV import
 
 Upload any CSV with these columns:
@@ -125,7 +141,7 @@ Edge cases handled automatically:
 ## Fake payment
 
 Cards ending in **0000** are always declined.
-All other valid card numbers (13–19 digits) succeed and return a `TXN-XXXXXXXX` reference.
+All other valid 16-digit card numbers succeed and return a `TXN-XXXXXXXX` reference.
 
 ---
 
@@ -209,6 +225,16 @@ npm run test:coverage     # with coverage report
 ## Skills and subagents used
 
 This project was built using a deliberate combination of Claude capabilities, each mapped to a specific layer of the challenge.
+
+**Reusable skills committed to this repo:**
+
+| File | Purpose |
+|---|---|
+| `CLAUDE.md` | Entry point read by any Claude session working in this repo — links the skills below and states the subagent delegation strategy |
+| `.claude/skills/SCAFFOLDING.md` | Step-by-step order for adding a new domain concept (entity → repository → exception → DTOs → service → controller), with a worked `Review` example, file naming table, and a Docker checklist |
+| `.claude/skills/TDD_ENDPOINT.md` | Red → Green → Refactor workflow for adding a single endpoint, with a full worked example (`PATCH /api/products/{id}/stock`), test templates for all three test types, and a "common mistakes" section sourced from real issues hit while building this project |
+
+These aren't generic templates — every code sample inside them is copy-pasted from this repo's actual `ProductService`, `ProductController`, and their tests, so a future contributor (human or AI) can lift a pattern directly rather than adapting a hypothetical example.
 
 ### Architectural planning (Claude chat)
 Used to design the three-option architecture comparison (Monolith, REST+SPA, Hexagonal), evaluate trade-offs (PostgreSQL vs H2, React vs Thymeleaf, TanStack Query vs SWR), and lock in the system diagram before writing a single file. The challenge brief explicitly values "foreseeing skills", so this planning phase was treated as a deliverable in itself.

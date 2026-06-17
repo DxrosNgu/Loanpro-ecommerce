@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import { useState } from 'react'
+import { useCart } from '../context/CartContext'
 
 const CATEGORY_COLORS = {
   FOOTWEAR: 'badge-blue', ELECTRONICS: 'badge-blue', ACCESSORIES: 'badge-gray',
@@ -7,10 +9,18 @@ const CATEGORY_COLORS = {
   BEAUTY: 'badge-amber', BOOKS: 'badge-gray', GAMES: 'badge-blue',
 }
 
-export default function ProductCard({ product, onBuy }) {
+export default function ProductCard({ product }) {
+  const { addItem } = useCart()
+  const [added, setAdded] = useState(false)
   const inStock = product.stock > 0
   const catClass = CATEGORY_COLORS[product.category] || 'badge-gray'
   const catLabel = product.category?.replace(/_/g, ' ').toLowerCase() ?? 'uncategorized'
+
+  function handleAddToCart() {
+    addItem(product, 1)
+    setAdded(true)
+    setTimeout(() => setAdded(false), 1200)
+  }
 
   return (
     <div className="card flex flex-col overflow-hidden group hover:border-brand-100 transition-colors">
@@ -48,11 +58,11 @@ export default function ProductCard({ product, onBuy }) {
               Edit
             </Link>
             <button
-              onClick={() => onBuy(product)}
+              onClick={handleAddToCart}
               disabled={!inStock}
-              className="btn-primary px-3 py-1.5 text-xs"
+              className="btn-primary px-3 py-1.5 text-xs min-w-[64px]"
             >
-              Buy
+              {added ? 'Added ✓' : 'Add to cart'}
             </button>
           </div>
         </div>

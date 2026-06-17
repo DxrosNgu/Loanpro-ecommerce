@@ -13,6 +13,11 @@ keep contributions — human or AI — consistent with the existing codebase.
 | Project Scaffolding | `.claude/skills/SCAFFOLDING.md` | Starting any new domain concept, endpoint group, or service from scratch |
 | TDD Endpoint Workflow | `.claude/skills/TDD_ENDPOINT.md` | Adding a single new endpoint to an existing controller, or building any new component/page on the frontend |
 
+> **Note:** `.claude/` is a hidden folder (its name starts with a dot), so some file
+> managers, zip viewers, and IDEs hide it by default — enable "show hidden files" if
+> the folder appears to be missing. The same two files are also mirrored, unhidden,
+> at `claude-skills/SCAFFOLDING.md` and `claude-skills/TDD_ENDPOINT.md` for convenience.
+
 **Read the relevant skill file in full before writing code.** Both skills are written
 against this codebase's actual files (`ProductService`, `ProductController`,
 `ProductControllerTest`, etc.) — not generic examples — so the conventions inside them

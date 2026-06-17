@@ -17,8 +17,8 @@ public class PaymentFacade {
 
         String digits = cardNumber.replaceAll("\\D", "");
 
-        if (digits.length() < 13 || digits.length() > 19) {
-            return PaymentResult.failed("Card number must be 13–19 digits");
+        if (digits.length() != 16) {
+            return PaymentResult.failed("Card number must be exactly 16 digits");
         }
 
         if (digits.endsWith("0000")) {

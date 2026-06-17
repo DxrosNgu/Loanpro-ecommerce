@@ -8,7 +8,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
@@ -23,8 +23,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @DisplayName("SearchController")
 class SearchControllerTest {
 
-    @Autowired MockMvc mockMvc;
-    @MockitoBean ProductService productService;
+    @Autowired
+    MockMvc mockMvc;
+    @MockBean
+    ProductService productService;
 
     private PageResponse<ProductResponse> pageOf(ProductResponse... items) {
         return PageResponse.<ProductResponse>builder()

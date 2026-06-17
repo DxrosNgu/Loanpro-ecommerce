@@ -82,12 +82,12 @@ class OrderServiceTest {
         @Test @DisplayName("creates FAILED order when card is declined")
         void createsFailedOrder() {
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
-            when(payment.charge(eq("4111111110000"), any()))
+            when(payment.charge(eq("4111111111110000"), any()))
                 .thenReturn(PaymentFacade.PaymentResult.failed("Card declined"));
             when(orderRepo.save(any(Order.class)))
                 .thenReturn(savedOrder(OrderStatus.FAILED, BigDecimal.valueOf(179.98)));
 
-            OrderResponse resp = service.placeOrder(request("4111111110000"));
+            OrderResponse resp = service.placeOrder(request("4111111111110000"));
 
             assertThat(resp.getStatus()).isEqualTo(OrderStatus.FAILED);
         }
@@ -111,7 +111,7 @@ class OrderServiceTest {
                 .thenReturn(PaymentFacade.PaymentResult.failed("Declined"));
             when(orderRepo.save(any())).thenReturn(savedOrder(OrderStatus.FAILED, BigDecimal.TEN));
 
-            service.placeOrder(request("4111111110000"));
+            service.placeOrder(request("4111111111110000"));
 
             assertThat(shoe.getStock()).isEqualTo(10);
         }

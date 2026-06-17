@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { productsApi, searchApi } from '../api/client'
 import ProductCard from '../components/ProductCard'
-import CheckoutModal from '../components/CheckoutModal'
 
 const CATEGORIES = [
   'FOOTWEAR','ELECTRONICS','ACCESSORIES','FOOD_AND_BEVERAGE','SPORTS',
@@ -14,26 +13,41 @@ const CATEGORIES = [
 export default function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const [page, setPage] = useState(0)
-  const [category, setCategory] = useState('')
-  const [minPrice, setMinPrice] = useState('')
-  const [maxPrice, setMaxPrice] = useState('')
-  const [buying, setBuying] = useState(null)
 
-  const q = searchParams.get('q') || ''
+  // The URL is the single source of truth for filters, so the navbar search,
+  // category dropdown, and price inputs never fight over state independently.
+  const q        = searchParams.get('q')        || ''
+  const category = searchParams.get('category')  || ''
+  const minPrice = searchParams.get('minPrice')  || ''
+  const maxPrice = searchParams.get('maxPrice')  || ''
 
-  const isSearching = q || category || minPrice || maxPrice
+  const isFiltering = Boolean(q || category || minPrice || maxPrice)
+
+  // Reset to page 0 whenever the active filters change
+  useEffect(() => { setPage(0) }, [q, category, minPrice, maxPrice])
 
   const { data, isLoading, isError } = useQuery({
     queryKey: ['products', q, category, minPrice, maxPrice, page],
-    queryFn: () => isSearching
-      ? searchApi.search({ q: q || undefined, category: category || undefined,
-          minPrice: minPrice || undefined, maxPrice: maxPrice || undefined, page, size: 12 })
+    queryFn: () => isFiltering
+      ? searchApi.search({
+          q: q || undefined,
+          category: category || undefined,
+          minPrice: minPrice || undefined,
+          maxPrice: maxPrice || undefined,
+          page, size: 12,
+        })
       : productsApi.list(page, 12),
   })
 
-  const clearFilters = () => {
+  function updateFilter(key, value) {
+    const next = new URLSearchParams(searchParams)
+    if (value) next.set(key, value)
+    else next.delete(key)
+    setSearchParams(next)
+  }
+
+  function clearFilters() {
     setSearchParams({})
-    setCategory(''); setMinPrice(''); setMaxPrice(''); setPage(0)
   }
 
   return (
@@ -43,7 +57,7 @@ export default function ProductListPage() {
           <label className="label">Category</label>
           <select
             value={category}
-            onChange={e => { setCategory(e.target.value); setPage(0) }}
+            onChange={e => updateFilter('category', e.target.value)}
             className="input"
           >
             <option value="">All categories</option>
@@ -55,16 +69,16 @@ export default function ProductListPage() {
         <div>
           <label className="label">Min price</label>
           <input type="number" min="0" step="0.01" value={minPrice}
-            onChange={e => { setMinPrice(e.target.value); setPage(0) }}
+            onChange={e => updateFilter('minPrice', e.target.value)}
             placeholder="$0" className="input w-28" />
         </div>
         <div>
           <label className="label">Max price</label>
           <input type="number" min="0" step="0.01" value={maxPrice}
-            onChange={e => { setMaxPrice(e.target.value); setPage(0) }}
+            onChange={e => updateFilter('maxPrice', e.target.value)}
             placeholder="Any" className="input w-28" />
         </div>
-        {(q || category || minPrice || maxPrice) && (
+        {isFiltering && (
           <button onClick={clearFilters} className="btn-ghost text-sm self-end mb-0.5">
             Clear filters
           </button>
@@ -103,7 +117,7 @@ export default function ProductListPage() {
         <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {data.content.map(p => (
-              <ProductCard key={p.id} product={p} onBuy={setBuying} />
+              <ProductCard key={p.id} product={p} />
             ))}
           </div>
 
@@ -130,8 +144,6 @@ export default function ProductListPage() {
           </div>
         </>
       )}
-
-      {buying && <CheckoutModal product={buying} onClose={() => setBuying(null)} />}
     </>
   )
 }

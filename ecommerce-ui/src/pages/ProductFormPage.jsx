@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm } from 'react-hook-form'
 import { productsApi } from '../api/client'
+import { useCart } from '../context/CartContext'
 
 const CATEGORIES = [
   'FOOTWEAR','ELECTRONICS','ACCESSORIES','FOOD_AND_BEVERAGE','SPORTS',
@@ -15,6 +16,7 @@ export default function ProductFormPage() {
   const isEdit = Boolean(id)
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { syncProduct } = useCart()
 
   const { data: existing, isLoading: loadingExisting } = useQuery({
     queryKey: ['product', id],
@@ -52,6 +54,7 @@ export default function ProductFormPage() {
     onSuccess: (product) => {
       qc.invalidateQueries({ queryKey: ['products'] })
       qc.invalidateQueries({ queryKey: ['product', String(product.id)] })
+      syncProduct(product) // refresh price/stock if this product is already in the cart
       navigate(`/products/${product.id}`)
     },
   })

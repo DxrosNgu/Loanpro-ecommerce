@@ -1,8 +1,10 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import ProductCard from '../../components/ProductCard'
+import { CartProvider } from '../../context/CartContext'
+import * as cartHook from '../../context/CartContext'
 
 const renderCard = (overrides = {}) => {
   const product = {
@@ -10,9 +12,12 @@ const renderCard = (overrides = {}) => {
     price: '89.99', stock: 150, category: 'FOOTWEAR',
     ...overrides,
   }
-  const onBuy = vi.fn()
-  render(<MemoryRouter><ProductCard product={product} onBuy={onBuy} /></MemoryRouter>)
-  return { product, onBuy }
+  render(
+    <CartProvider>
+      <MemoryRouter><ProductCard product={product} /></MemoryRouter>
+    </CartProvider>
+  )
+  return { product }
 }
 
 describe('ProductCard', () => {
@@ -55,28 +60,38 @@ describe('ProductCard', () => {
     })
   })
 
-  describe('Buy button', () => {
+  describe('Add to cart button', () => {
     it('is enabled when product is in stock', () => {
       renderCard({ stock: 5 })
-      expect(screen.getByRole('button', { name: /buy/i })).not.toBeDisabled()
+      expect(screen.getByRole('button', { name: /add to cart/i })).not.toBeDisabled()
     })
 
     it('is disabled when stock is 0', () => {
       renderCard({ stock: 0 })
-      expect(screen.getByRole('button', { name: /buy/i })).toBeDisabled()
+      expect(screen.getByRole('button', { name: /add to cart/i })).toBeDisabled()
     })
 
-    it('calls onBuy with the product object when clicked', async () => {
-      const { onBuy, product } = renderCard({ stock: 10 })
-      await userEvent.click(screen.getByRole('button', { name: /buy/i }))
-      expect(onBuy).toHaveBeenCalledOnce()
-      expect(onBuy).toHaveBeenCalledWith(product)
+    it('shows "Added ✓" feedback after clicking', async () => {
+      renderCard({ stock: 10 })
+      await userEvent.click(screen.getByRole('button', { name: /add to cart/i }))
+      await waitFor(() => {
+        expect(screen.getByText('Added ✓')).toBeInTheDocument()
+      })
     })
 
-    it('does NOT call onBuy when out of stock', async () => {
-      const { onBuy } = renderCard({ stock: 0 })
-      await userEvent.click(screen.getByRole('button', { name: /buy/i }))
-      expect(onBuy).not.toHaveBeenCalled()
+    it('reverts to "Add to cart" label after the feedback timeout', async () => {
+      vi.useFakeTimers()
+      renderCard({ stock: 10 })
+      await userEvent.setup({ delay: null }).click(
+        screen.getByRole('button', { name: /add to cart/i })
+      )
+      expect(screen.getByText('Added ✓')).toBeInTheDocument()
+
+      vi.advanceTimersByTime(1300)
+      await waitFor(() => {
+        expect(screen.getByText('Add to cart')).toBeInTheDocument()
+      })
+      vi.useRealTimers()
     })
   })
 

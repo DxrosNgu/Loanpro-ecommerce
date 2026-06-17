@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import ProductFormPage from '../../pages/ProductFormPage'
+import { CartProvider, useCart } from '../../context/CartContext'
 import * as client from '../../api/client'
 
 vi.mock('../../api/client', () => ({
@@ -23,14 +24,26 @@ vi.mock('react-router-dom', async () => {
 const queryClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false } } })
 
+// Reads the live cart state out for assertions without re-mocking useCart,
+// so the test exercises the real CartContext + ProductFormPage integration.
+function CartPeek() {
+  const { items } = useCart()
+  const backpack = items.find(i => i.product.id === 1)
+  return backpack ? (
+    <p data-testid="cart-price-peek">{Number(backpack.product.price).toFixed(2)}</p>
+  ) : null
+}
+
 const renderCreate = () =>
   render(
     <QueryClientProvider client={queryClient()}>
-      <MemoryRouter initialEntries={['/products/new']}>
-        <Routes>
-          <Route path="/products/new" element={<ProductFormPage />} />
-        </Routes>
-      </MemoryRouter>
+      <CartProvider>
+        <MemoryRouter initialEntries={['/products/new']}>
+          <Routes>
+            <Route path="/products/new" element={<ProductFormPage />} />
+          </Routes>
+        </MemoryRouter>
+      </CartProvider>
     </QueryClientProvider>
   )
 
@@ -42,11 +55,49 @@ const renderEdit = (id = '1') => {
   })
   return render(
     <QueryClientProvider client={queryClient()}>
-      <MemoryRouter initialEntries={[`/products/${id}/edit`]}>
-        <Routes>
-          <Route path="/products/:id/edit" element={<ProductFormPage />} />
-        </Routes>
-      </MemoryRouter>
+      <CartProvider>
+        <MemoryRouter initialEntries={[`/products/${id}/edit`]}>
+          <Routes>
+            <Route path="/products/:id/edit" element={<ProductFormPage />} />
+          </Routes>
+        </MemoryRouter>
+      </CartProvider>
+    </QueryClientProvider>
+  )
+}
+
+// Same as renderEdit, but seeds the cart with the product first and mounts
+// CartPeek so the test can observe the price the cart is actually using.
+function EditWithSeededCart({ id, initialPrice }) {
+  const { addItem } = useCart()
+  if (!EditWithSeededCart._seeded) {
+    addItem({ id: Number(id), name: 'Running Shoes', price: initialPrice, stock: 150 }, 1)
+    EditWithSeededCart._seeded = true
+  }
+  return (
+    <>
+      <CartPeek />
+      <ProductFormPage />
+    </>
+  )
+}
+
+const renderEditWithSeededCart = (id = '1', initialPrice = 64.99) => {
+  EditWithSeededCart._seeded = false
+  client.productsApi.get.mockResolvedValue({
+    id: 1, name: 'Backpack', sku: 'BP-001',
+    price: initialPrice, stock: 10, category: 'ACCESSORIES',
+    description: 'Travel backpack', weightKg: 0.8
+  })
+  return render(
+    <QueryClientProvider client={queryClient()}>
+      <CartProvider>
+        <MemoryRouter initialEntries={[`/products/${id}/edit`]}>
+          <Routes>
+            <Route path="/products/:id/edit" element={<EditWithSeededCart id={id} initialPrice={initialPrice} />} />
+          </Routes>
+        </MemoryRouter>
+      </CartProvider>
     </QueryClientProvider>
   )
 }
@@ -154,6 +205,27 @@ describe('ProductFormPage', () => {
         expect(client.productsApi.update).toHaveBeenCalledWith('1',
           expect.objectContaining({ name: 'Updated Shoe' })
         )
+      })
+    })
+  })
+
+  describe('regression: cart showed stale price after editing a product already in the cart', () => {
+    it('updates the price shown in the cart immediately after a successful edit', async () => {
+      client.productsApi.update.mockResolvedValue({
+        id: 1, name: 'Backpack', sku: 'BP-001', price: 34.99, stock: 10
+      })
+      renderEditWithSeededCart('1', 64.99)
+
+      await waitFor(() => screen.getByDisplayValue('Backpack'))
+      expect(screen.getByTestId('cart-price-peek')).toHaveTextContent('64.99')
+
+      const priceInput = screen.getByDisplayValue('64.99')
+      await userEvent.clear(priceInput)
+      await userEvent.type(priceInput, '34.99')
+      await userEvent.click(screen.getByRole('button', { name: /save changes/i }))
+
+      await waitFor(() => {
+        expect(screen.getByTestId('cart-price-peek')).toHaveTextContent('34.99')
       })
     })
   })

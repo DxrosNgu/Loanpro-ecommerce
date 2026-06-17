@@ -26,18 +26,26 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     @Query("""
         SELECT p FROM Product p
         WHERE p.deleted = false
-          AND (:q IS NULL OR LOWER(p.name) LIKE LOWER(CONCAT('%', :q, '%'))
-               OR LOWER(p.description) LIKE LOWER(CONCAT('%', :q, '%'))
-               OR LOWER(p.sku) LIKE LOWER(CONCAT('%', :q, '%')))
+          AND (:q IS NULL
+               OR LOWER(p.name) LIKE :q
+               OR LOWER(p.description) LIKE :q
+               OR LOWER(p.sku) LIKE :q)
           AND (:category IS NULL OR p.category = :category)
           AND (:minPrice IS NULL OR p.price >= :minPrice)
           AND (:maxPrice IS NULL OR p.price <= :maxPrice)
         """)
-    Page<Product> search(
-        @Param("q") String q,
+    Page<Product> searchInternal(
+        @Param("q") String likePattern,
         @Param("category") Category category,
         @Param("minPrice") BigDecimal minPrice,
         @Param("maxPrice") BigDecimal maxPrice,
         Pageable pageable
     );
+
+    default Page<Product> search(String q, Category category,
+                                   BigDecimal minPrice, BigDecimal maxPrice,
+                                   Pageable pageable) {
+        String likePattern = (q == null) ? null : "%" + q.toLowerCase() + "%";
+        return searchInternal(likePattern, category, minPrice, maxPrice, pageable);
+    }
 }

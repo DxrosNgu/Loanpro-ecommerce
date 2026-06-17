@@ -18,8 +18,8 @@ class PaymentFacadeTest {
     @Nested @DisplayName("Successful charges")
     class Success {
 
-        @Test @DisplayName("valid 16-digit Visa card succeeds")
-        void visaSucceeds() {
+        @Test @DisplayName("valid 16-digit card succeeds")
+        void sixteenDigitCardSucceeds() {
             var r = facade.charge("4111111111111111", BigDecimal.valueOf(99.99));
             assertThat(r.isSuccess()).isTrue();
             assertThat(r.getTransactionId()).startsWith("TXN-");
@@ -33,21 +33,15 @@ class PaymentFacadeTest {
             assertThat(r1.getTransactionId()).isNotEqualTo(r2.getTransactionId());
         }
 
-        @Test @DisplayName("Mastercard 13-digit minimum length succeeds")
-        void minLengthSucceeds() {
-            var r = facade.charge("4111111111111", BigDecimal.valueOf(10.00));
-            assertThat(r.isSuccess()).isTrue();
-        }
-
-        @Test @DisplayName("19-digit card (maximum length) succeeds")
-        void maxLengthSucceeds() {
-            var r = facade.charge("4111111111111111111", BigDecimal.valueOf(50.00));
-            assertThat(r.isSuccess()).isTrue();
-        }
-
         @Test @DisplayName("spaces in card number are stripped before validation")
         void stripsSpaces() {
-            var r = facade.charge("4111 1111 1111 1111", BigDecimal.TEN);
+            var r = facade.charge("4111 1111 1111 1111", BigDecimal.TEN); // 16 digits once stripped
+            assertThat(r.isSuccess()).isTrue();
+        }
+
+        @Test @DisplayName("dashes in card number are stripped before validation")
+        void stripsDashes() {
+            var r = facade.charge("4111-1111-1111-1111", BigDecimal.TEN); // 16 digits once stripped
             assertThat(r.isSuccess()).isTrue();
         }
 
@@ -58,12 +52,12 @@ class PaymentFacadeTest {
         }
     }
 
-    @Nested @DisplayName("Declined cards")
+    @Nested @DisplayName("Declined cards (correct length, ends in 0000)")
     class Declined {
 
-        @ParameterizedTest(name = "card {0} is declined")
-        @ValueSource(strings = {"4111111111110000", "5500005555555550000", "1234560000"})
-        @DisplayName("any card ending in 0000 is declined")
+        @ParameterizedTest(name = "16-digit card {0} is declined")
+        @ValueSource(strings = {"4111111111110000", "5500005555550000", "1234567890120000"})
+        @DisplayName("any 16-digit card ending in 0000 is declined")
         void cardEndingIn0000IsDeclined(String card) {
             var r = facade.charge(card, BigDecimal.valueOf(50.00));
             assertThat(r.isSuccess()).isFalse();
@@ -77,8 +71,8 @@ class PaymentFacadeTest {
         }
     }
 
-    @Nested @DisplayName("Invalid input")
-    class InvalidInput {
+    @Nested @DisplayName("Invalid card length — must be exactly 16 digits")
+    class InvalidLength {
 
         @Test @DisplayName("blank card number fails")
         void blankCardFails() {
@@ -92,17 +86,41 @@ class PaymentFacadeTest {
             assertThat(r.isSuccess()).isFalse();
         }
 
-        @Test @DisplayName("card with fewer than 13 digits fails")
-        void tooShortCardFails() {
-            var r = facade.charge("411111111111", BigDecimal.TEN); // 12 digits
+        @Test @DisplayName("13-digit card fails (too short — old minimum no longer accepted)")
+        void thirteenDigitCardFails() {
+            var r = facade.charge("4111111111111", BigDecimal.TEN); // 13 digits
+            assertThat(r.isSuccess()).isFalse();
+            assertThat(r.getFailureReason()).containsIgnoringCase("16 digits");
+        }
+
+        @Test @DisplayName("15-digit card fails (one digit short)")
+        void fifteenDigitCardFails() {
+            var r = facade.charge("411111111111111", BigDecimal.TEN); // 15 digits
             assertThat(r.isSuccess()).isFalse();
         }
 
-        @Test @DisplayName("card with more than 19 digits fails")
-        void tooLongCardFails() {
-            var r = facade.charge("41111111111111111111", BigDecimal.TEN); // 20 digits
+        @Test @DisplayName("17-digit card fails (one digit over)")
+        void seventeenDigitCardFails() {
+            var r = facade.charge("41111111111111111", BigDecimal.TEN); // 17 digits
             assertThat(r.isSuccess()).isFalse();
         }
+
+        @Test @DisplayName("19-digit card fails (old maximum no longer accepted)")
+        void nineteenDigitCardFails() {
+            var r = facade.charge("4111111111111111111", BigDecimal.TEN); // 19 digits
+            assertThat(r.isSuccess()).isFalse();
+            assertThat(r.getFailureReason()).containsIgnoringCase("16 digits");
+        }
+
+        @Test @DisplayName("single digit fails")
+        void singleDigitFails() {
+            var r = facade.charge("4", BigDecimal.TEN);
+            assertThat(r.isSuccess()).isFalse();
+        }
+    }
+
+    @Nested @DisplayName("Invalid amount")
+    class InvalidAmount {
 
         @Test @DisplayName("zero amount fails")
         void zeroAmountFails() {

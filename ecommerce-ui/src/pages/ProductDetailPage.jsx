@@ -2,14 +2,15 @@ import { useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { productsApi } from '../api/client'
-import CheckoutModal from '../components/CheckoutModal'
+import { useCart } from '../context/CartContext'
 
 export default function ProductDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { addItem, removeItem } = useCart()
   const [qty, setQty] = useState(1)
-  const [buying, setBuying] = useState(false)
+  const [added, setAdded] = useState(false)
 
   const { data: product, isLoading, isError } = useQuery({
     queryKey: ['product', id],
@@ -20,6 +21,7 @@ export default function ProductDetailPage() {
     mutationFn: () => productsApi.delete(id),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['products'] })
+      removeItem(Number(id)) // a deleted product can no longer be checked out
       navigate('/')
     },
   })
@@ -29,6 +31,12 @@ export default function ProductDetailPage() {
 
   const inStock = product.stock > 0
   const catLabel = product.category?.replace(/_/g, ' ').toLowerCase() ?? 'uncategorized'
+
+  function handleAddToCart() {
+    addItem(product, qty)
+    setAdded(true)
+    setTimeout(() => setAdded(false), 1500)
+  }
 
   return (
     <>
@@ -89,11 +97,11 @@ export default function ProductDetailPage() {
 
           <div className="flex gap-2 flex-wrap">
             <button
-              onClick={() => setBuying(true)}
+              onClick={handleAddToCart}
               disabled={!inStock}
               className="btn-primary flex-1"
             >
-              Buy now — ${(Number(product.price) * qty).toFixed(2)}
+              {added ? 'Added to cart ✓' : `Add to cart — $${(Number(product.price) * qty).toFixed(2)}`}
             </button>
             <Link to={`/products/${id}/edit`} className="btn-secondary">
               Edit
@@ -110,10 +118,6 @@ export default function ProductDetailPage() {
           </div>
         </div>
       </div>
-
-      {buying && (
-        <CheckoutModal product={product} quantity={qty} onClose={() => setBuying(false)} />
-      )}
     </>
   )
 }
