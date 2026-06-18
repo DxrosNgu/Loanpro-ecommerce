@@ -40,9 +40,9 @@ class OrderServiceTest {
     @BeforeEach
     void setUp() {
         shoe = Product.builder()
-            .id(1L).name("Running Shoes").sku("RS-001")
-            .price(BigDecimal.valueOf(89.99)).stock(10)
-            .deleted(false).build();
+                .id(1L).name("Running Shoes").sku("RS-001")
+                .price(BigDecimal.valueOf(89.99)).stock(10)
+                .deleted(false).build();
     }
 
     private OrderRequest request(String card) {
@@ -57,9 +57,9 @@ class OrderServiceTest {
 
     private Order savedOrder(OrderStatus status, BigDecimal total) {
         return Order.builder()
-            .id(42L).status(status).totalAmount(total)
-            .paymentRef(status == OrderStatus.PAID ? "TXN-ABCD1234" : null)
-            .items(List.of()).build();
+                .id(42L).status(status).totalAmount(total)
+                .paymentRef(status == OrderStatus.PAID ? "TXN-ABCD1234" : null)
+                .items(List.of()).build();
     }
 
     @Nested @DisplayName("placeOrder()")
@@ -69,9 +69,9 @@ class OrderServiceTest {
         void createsPaidOrder() {
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
             when(payment.charge(eq("4111111111111111"), any()))
-                .thenReturn(PaymentFacade.PaymentResult.success("TXN-ABCD1234"));
+                    .thenReturn(PaymentFacade.PaymentResult.success("TXN-ABCD1234"));
             when(orderRepo.save(any(Order.class)))
-                .thenReturn(savedOrder(OrderStatus.PAID, BigDecimal.valueOf(179.98)));
+                    .thenReturn(savedOrder(OrderStatus.PAID, BigDecimal.valueOf(179.98)));
 
             OrderResponse resp = service.placeOrder(request("4111111111111111"));
 
@@ -83,9 +83,9 @@ class OrderServiceTest {
         void createsFailedOrder() {
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
             when(payment.charge(eq("4111111111110000"), any()))
-                .thenReturn(PaymentFacade.PaymentResult.failed("Card declined"));
+                    .thenReturn(PaymentFacade.PaymentResult.failed("Card declined"));
             when(orderRepo.save(any(Order.class)))
-                .thenReturn(savedOrder(OrderStatus.FAILED, BigDecimal.valueOf(179.98)));
+                    .thenReturn(savedOrder(OrderStatus.FAILED, BigDecimal.valueOf(179.98)));
 
             OrderResponse resp = service.placeOrder(request("4111111111110000"));
 
@@ -96,7 +96,7 @@ class OrderServiceTest {
         void decrementsStockOnSuccess() {
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
             when(payment.charge(any(), any()))
-                .thenReturn(PaymentFacade.PaymentResult.success("TXN-X"));
+                    .thenReturn(PaymentFacade.PaymentResult.success("TXN-X"));
             when(orderRepo.save(any())).thenReturn(savedOrder(OrderStatus.PAID, BigDecimal.TEN));
 
             service.placeOrder(request("4111111111111111"));
@@ -108,7 +108,7 @@ class OrderServiceTest {
         void doesNotDecrementStockOnFailure() {
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
             when(payment.charge(any(), any()))
-                .thenReturn(PaymentFacade.PaymentResult.failed("Declined"));
+                    .thenReturn(PaymentFacade.PaymentResult.failed("Declined"));
             when(orderRepo.save(any())).thenReturn(savedOrder(OrderStatus.FAILED, BigDecimal.TEN));
 
             service.placeOrder(request("4111111111110000"));
@@ -127,8 +127,8 @@ class OrderServiceTest {
             req.setItems(List.of(item)); req.setCardNumber("4111111111111111");
 
             assertThatThrownBy(() -> service.placeOrder(req))
-                .isInstanceOf(InsufficientStockException.class)
-                .hasMessageContaining("RS-001");
+                    .isInstanceOf(InsufficientStockException.class)
+                    .hasMessageContaining("RS-001");
         }
 
         @Test @DisplayName("throws ProductNotFoundException when product missing")
@@ -141,22 +141,22 @@ class OrderServiceTest {
             req.setItems(List.of(item)); req.setCardNumber("4111111111111111");
 
             assertThatThrownBy(() -> service.placeOrder(req))
-                .isInstanceOf(ProductNotFoundException.class);
+                    .isInstanceOf(ProductNotFoundException.class);
         }
 
         @Test @DisplayName("calculates total correctly across multiple items")
         void calculatesTotal() {
             Product mouse = Product.builder()
-                .id(2L).name("Wireless Mouse").sku("WM-042")
-                .price(BigDecimal.valueOf(29.99)).stock(20).deleted(false).build();
+                    .id(2L).name("Wireless Mouse").sku("WM-042")
+                    .price(BigDecimal.valueOf(29.99)).stock(20).deleted(false).build();
 
             when(productRepo.findByIdAndDeletedFalse(1L)).thenReturn(Optional.of(shoe));
             when(productRepo.findByIdAndDeletedFalse(2L)).thenReturn(Optional.of(mouse));
-            when(payment.charge(any(), eq(BigDecimal.valueOf(89.99 + 29.99))))
-                .thenReturn(PaymentFacade.PaymentResult.success("TXN-X"));
+            when(payment.charge(any(), eq(new BigDecimal("119.98"))))
+                    .thenReturn(PaymentFacade.PaymentResult.success("TXN-X"));
 
             Order persisted = Order.builder().id(1L).status(OrderStatus.PAID)
-                .totalAmount(BigDecimal.valueOf(119.98)).items(List.of()).build();
+                    .totalAmount(BigDecimal.valueOf(119.98)).items(List.of()).build();
             when(orderRepo.save(any())).thenReturn(persisted);
 
             OrderItemRequest i1 = new OrderItemRequest(); i1.setProductId(1L); i1.setQuantity(1);
@@ -166,7 +166,7 @@ class OrderServiceTest {
 
             service.placeOrder(req);
 
-            verify(payment).charge(any(), eq(BigDecimal.valueOf(119.98)));
+            verify(payment).charge(any(), eq(new BigDecimal("119.98")));
         }
     }
 
@@ -189,8 +189,8 @@ class OrderServiceTest {
             when(orderRepo.findById(999L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.getById(999L))
-                .isInstanceOf(OrderNotFoundException.class)
-                .hasMessageContaining("999");
+                    .isInstanceOf(OrderNotFoundException.class)
+                    .hasMessageContaining("999");
         }
     }
 }

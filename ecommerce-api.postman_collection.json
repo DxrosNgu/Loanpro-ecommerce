@@ -1,0 +1,385 @@
+{
+  "info": {
+    "name": "LoanPro E-Commerce API",
+    "description": "Complete collection for the LoanPro E-Commerce REST API.\n\nBase URL: http://localhost:8080\n\nUse the `baseUrl` collection variable to switch environments.\nSwagger UI is also available at http://localhost:8080/swagger-ui.html",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "productId",
+      "value": "1",
+      "type": "string",
+      "description": "Set this after creating a product"
+    },
+    {
+      "key": "orderId",
+      "value": "1",
+      "type": "string",
+      "description": "Set this after placing an order"
+    }
+  ],
+  "item": [
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List products (paginated)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products?page=0&size=12&sort=name",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"],
+              "query": [
+                { "key": "page", "value": "0", "description": "Zero-based page number" },
+                { "key": "size", "value": "12", "description": "Items per page" },
+                { "key": "sort", "value": "name", "description": "Sort field (name, price, stock)" }
+              ]
+            },
+            "description": "Returns a paginated list of all non-deleted products."
+          },
+          "response": []
+        },
+        {
+          "name": "Get product by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            },
+            "description": "Returns a single product. Returns 404 if not found or soft-deleted."
+          },
+          "response": []
+        },
+        {
+          "name": "Create product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('productId', body.id);",
+                  "  console.log('productId set to', body.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Running Shoes\",\n  \"sku\": \"RS-001\",\n  \"description\": \"Lightweight running shoes for daily training\",\n  \"category\": \"FOOTWEAR\",\n  \"price\": 89.99,\n  \"stock\": 150,\n  \"weightKg\": 0.35\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            },
+            "description": "Creates a new product. SKU must be unique. Returns 201 on success.\n\nValid categories: FOOTWEAR, ELECTRONICS, ACCESSORIES, FOOD_AND_BEVERAGE, SPORTS, OUTDOORS, HOME_AND_OFFICE, CLOTHING, KITCHEN, BOOKS, GAMES, BEAUTY, STATIONERY, HEALTH, PETS, TOOLS, GIFTS, MISC, UNCATEGORIZED\n\nThe test script auto-sets the `productId` variable for use in subsequent requests."
+          },
+          "response": []
+        },
+        {
+          "name": "Create product (validation error — missing name)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"MISSING-NAME\",\n  \"price\": 9.99,\n  \"stock\": 10\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products"]
+            },
+            "description": "Demonstrates 400 validation error when `name` is omitted."
+          },
+          "response": []
+        },
+        {
+          "name": "Update product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Running Shoes Pro\",\n  \"sku\": \"RS-001\",\n  \"description\": \"Updated lightweight running shoes\",\n  \"category\": \"FOOTWEAR\",\n  \"price\": 99.99,\n  \"stock\": 120,\n  \"weightKg\": 0.33\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            },
+            "description": "Full replacement update (PUT semantics). All fields must be provided."
+          },
+          "response": []
+        },
+        {
+          "name": "Delete product (soft-delete)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{baseUrl}}/api/products/{{productId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "{{productId}}"]
+            },
+            "description": "Soft-deletes the product (sets `deleted=true`). The product is hidden from catalogue and search but its data is preserved for order history integrity. Returns 204 No Content."
+          },
+          "response": []
+        },
+        {
+          "name": "Import products from CSV",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "description": "CSV file with columns: name, sku, description, category, price, stock, weight_kg"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/products/import",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "products", "import"]
+            },
+            "description": "Bulk-imports products from a CSV file (multipart/form-data, key = `file`).\n\nExpected CSV columns:\n  name, sku, description, category, price, stock, weight_kg\n\nHandled automatically:\n- `$29.99` price → stripped to `29.99`\n- `\"free\"` price → mapped to `0.00`\n- Negative stock → row rejected\n- Blank name → row rejected\n- Duplicate SKU → existing record updated (upsert)\n- XSS in name/desc → sanitised\n- Missing weight → stored as null\n- Missing category → stored as UNCATEGORIZED\n- Fully blank rows → silently skipped\n\nReturns a per-row result report."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Search",
+      "item": [
+        {
+          "name": "Search — keyword only",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q=shoes&page=0&size=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "q", "value": "shoes", "description": "Full-text keyword (matches name, description, SKU)" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "12" }
+              ]
+            },
+            "description": "Case-insensitive keyword search across name, description, and SKU."
+          },
+          "response": []
+        },
+        {
+          "name": "Search — category filter",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/search?category=ELECTRONICS&page=0&size=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "category", "value": "ELECTRONICS" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "12" }
+              ]
+            },
+            "description": "Filter by category enum value."
+          },
+          "response": []
+        },
+        {
+          "name": "Search — price range only (no keyword)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/search?minPrice=30&maxPrice=200&page=0&size=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "minPrice", "value": "30" },
+                { "key": "maxPrice", "value": "200" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "12" }
+              ]
+            },
+            "description": "Price range filter with no keyword. This is the exact request shape that triggered the production `lower(bytea)` bug — now fixed."
+          },
+          "response": []
+        },
+        {
+          "name": "Search — all filters combined",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/search?q=wireless&category=ELECTRONICS&minPrice=10&maxPrice=50&page=0&size=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "q", "value": "wireless" },
+                { "key": "category", "value": "ELECTRONICS" },
+                { "key": "minPrice", "value": "10" },
+                { "key": "maxPrice", "value": "50" },
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "12" }
+              ]
+            },
+            "description": "All four filters applied simultaneously."
+          },
+          "response": []
+        },
+        {
+          "name": "Search — all params omitted (returns full catalogue)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/search?page=0&size=12",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "search"],
+              "query": [
+                { "key": "page", "value": "0" },
+                { "key": "size", "value": "12" }
+              ]
+            },
+            "description": "No filters — returns all non-deleted products (paginated)."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Place order — success (card paid)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  const body = pm.response.json();",
+                  "  pm.collectionVariables.set('orderId', body.id);",
+                  "  console.log('orderId set to', body.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": {{productId}}, \"quantity\": 2 }\n  ],\n  \"cardNumber\": \"4111111111111111\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Places an order with a valid card number. Payment is simulated.\n\nRules:\n- Cards ending in `0000` are always declined.\n- All other valid 16-digit cards succeed.\n- Stock is decremented only on successful payment.\n\nThe test script auto-sets `orderId` for the Get order request."
+          },
+          "response": []
+        },
+        {
+          "name": "Place order — declined (card ends in 0000)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": {{productId}}, \"quantity\": 1 }\n  ],\n  \"cardNumber\": \"4111111111110000\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Any card ending in `0000` is declined by the fake payment gateway. The order is saved with status `FAILED` and stock is NOT decremented."
+          },
+          "response": []
+        },
+        {
+          "name": "Place order — insufficient stock",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": {{productId}}, \"quantity\": 99999 }\n  ],\n  \"cardNumber\": \"4111111111111111\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Returns 409 Conflict when the requested quantity exceeds available stock."
+          },
+          "response": []
+        },
+        {
+          "name": "Place order — multiple items",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"items\": [\n    { \"productId\": 1, \"quantity\": 1 },\n    { \"productId\": 2, \"quantity\": 3 }\n  ],\n  \"cardNumber\": \"4111111111111111\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders"]
+            },
+            "description": "Places a multi-line order. Total is computed server-side by summing unitPrice × quantity for each line."
+          },
+          "response": []
+        },
+        {
+          "name": "Get order by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/{{orderId}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "{{orderId}}"]
+            },
+            "description": "Returns the order receipt including status (PAID / FAILED), total amount, payment reference (TXN-XXXXXXXX), and all line items with unit prices snapshotted at purchase time."
+          },
+          "response": []
+        },
+        {
+          "name": "Get order — 404 (unknown ID)",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/api/orders/999999",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "orders", "999999"]
+            },
+            "description": "Returns 404 Not Found for a non-existent order ID."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

@@ -55,17 +55,24 @@ public class CsvRowValidator {
 
         BigDecimal price;
         try {
-            String cleanPrice = rawPrice.trim().replaceAll("[^\\d.]", "");
-            if (cleanPrice.isEmpty() || cleanPrice.equals(".")) {
+            String trimmedPrice = rawPrice.trim();
+            if (trimmedPrice.isEmpty()) {
                 return Result.rejected(rowNumber, sku, "Price is empty or invalid");
             }
-            if (rawPrice.trim().equalsIgnoreCase("free")) {
+            if (trimmedPrice.equalsIgnoreCase("free")) {
                 price = BigDecimal.ZERO;
                 warnings.add("Price 'free' mapped to 0.00");
             } else {
-                price = new BigDecimal(cleanPrice);
-                if (!rawPrice.trim().equals(cleanPrice)) {
-                    warnings.add("Price cleaned from '" + rawPrice.trim() + "' to " + price);
+                // Preserve a leading minus so negative prices are caught below;
+                // then strip non-numeric characters (e.g. currency symbols like $).
+                boolean isNegative = trimmedPrice.startsWith("-");
+                String cleanPrice = trimmedPrice.replaceAll("[^\\d.]", "");
+                if (cleanPrice.isEmpty() || cleanPrice.equals(".")) {
+                    return Result.rejected(rowNumber, sku, "Price '" + trimmedPrice + "' is not a valid number");
+                }
+                price = new BigDecimal(isNegative ? "-" + cleanPrice : cleanPrice);
+                if (!trimmedPrice.equals(cleanPrice)) {
+                    warnings.add("Price cleaned from '" + trimmedPrice + "' to " + price);
                 }
             }
             if (price.compareTo(BigDecimal.ZERO) < 0) {
