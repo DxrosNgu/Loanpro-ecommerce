@@ -57,6 +57,14 @@ public class CsvImportService {
                 String cleanDesc = sanitize(r.getDescription());
                 String sku = r.getSku().toUpperCase();
 
+                if (cleanName == null || cleanName.isBlank()) {
+                    errors.add(RowError.builder()
+                            .row(i + 1).sku(sku)
+                            .reason("Name became blank after sanitization")
+                            .build());
+                    continue;
+                }
+
                 var existing = repo.findBySku(sku);
                 if (existing.isPresent()) {
                     Product p = existing.get();
